@@ -28,6 +28,27 @@ def signup(data: SignupModel):
 def login(data: LoginModel):
     conn = get_connection()
     cur = conn.cursor()
+    cur.execute("SELECT id, name, password_hash, role, is_active FROM users WHERE email = %s", (data.email,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not user or not verify_password(data.password, user[2]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Check if user is banned
+    if user[4] is False:
+        raise HTTPException(status_code=403, detail="Your account has been suspended. Contact admin.")
+
+    token = create_token({
+        "id": user[0],
+        "user_id": user[0],  # Add this explicitly
+        "name": user[1],
+        "role": user[3]
+    })
+    return {"token": token, "name": user[1], "role": user[3]}
+    conn = get_connection()
+    cur = conn.cursor()
     cur.execute("SELECT id, name, password_hash, role FROM users WHERE email = %s", (data.email,))
     user = cur.fetchone()
     cur.close()
